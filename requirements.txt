@@ -6,3 +6,4 @@ passlib[bcrypt]
 pydantic
 email-validator
 requests
+python-multipart
