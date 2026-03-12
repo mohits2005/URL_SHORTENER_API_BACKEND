@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # URL-Shortener-Backend
 
 🔗 URL Shortener & Authentication API
@@ -140,3 +141,6 @@ JWT tokens include expiration
 Protected routes require valid authentication
 
 Google OAuth handled server-side only
+=======
+# URL_SHORTENER_API_BACKEND
+>>>>>>> 0fdfab47d5bf56899601c31956cde2da3603d138
