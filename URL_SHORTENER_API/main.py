@@ -15,3 +15,4 @@ app.include_router(urls_router.router)
 @app.get("/")
 def root():
     return {"message": "URL Shortener + Auth API", "docs": "/docs", "redoc": "/redoc"}
+

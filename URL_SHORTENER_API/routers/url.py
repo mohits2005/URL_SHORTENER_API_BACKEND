@@ -1,8 +1,11 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
-
+from URL_SHORTENER_API.services.url_service import get_original_url, increment_clicks
+from fastapi import Request
+from URL_SHORTENER_API.services.rate_limiter import rate_limit, get_rate_limit_status
+import asyncio
 
 import URL_SHORTENER_API.schemas as schemas, URL_SHORTENER_API.crud as crud, URL_SHORTENER_API.auth as auth  
 from URL_SHORTENER_API.deps import get_db
@@ -20,10 +23,21 @@ def get_list_urls(current_user = Depends(auth.get_current_user), db: Session = D
     return crud.list_user_urls(db, current_user.id)
 
 @router.get("/u/{short_code}")
-def redirect_short_url(short_code: str, db: Session = Depends(get_db)):
-    url_obj = crud.get_url_by_shortcode(db, short_code)
-    if not url_obj:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="short URL not found")
-    url_obj.clicks += 1
-    db.commit()
-    return RedirectResponse(url=url_obj.target_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+async def redirect_short_url(
+    short_code: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+
+    client_ip = request.client.host
+    await rate_limit(client_ip, limit=10, window=60)
+    status = await get_rate_limit_status(client_ip, limit=10)
+    url = await get_original_url(short_code, db)
+
+    if not url:
+        raise HTTPException(status_code=404, detail="short URL not found")
+
+    background_tasks.add_task(increment_clicks, short_code)
+
+    return RedirectResponse(url=url, status_code=307)
