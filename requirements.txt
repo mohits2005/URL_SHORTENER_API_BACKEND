@@ -7,3 +7,5 @@ pydantic
 email-validator
 requests
 python-multipart
+redis
+streamlit
