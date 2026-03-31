@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 
-BASE_URL = "https://url-shortener-api-backend-6.onrender.com/"
+BASE_URL = "https://url-shortener-api-backend-7.onrender.com"
 
 st.set_page_config(page_title="URL Shortener", layout="wide")
 
