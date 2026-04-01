@@ -8,26 +8,33 @@ from URL_SHORTENER_API.database import sessionLocal
 from URL_SHORTENER_API import models
 
 async def get_original_url(short_code: str, db):
+    try:
+        cached = await redis_client.get(short_code)
 
-    cached = await redis_client.get(short_code)
-
-    if cached:
-        if cached == "NULL":
-            return None
-        return cached
+        if cached:
+            if cached == "NULL":
+                return None
+            return cached
+    except Exception:
+        pass
 
     url_obj = db.query(models.URL).filter(
         models.URL.short_code == short_code
     ).first()
 
     if not url_obj:
-        await redis_client.set(short_code, "NULL", ex=60)
+        try:
+            await redis_client.set(short_code, "NULL", ex=60)
+        except Exception:
+            pass
         return None
 
     original_url = url_obj.target_url
 
-    await redis_client.set(short_code, original_url, ex=3600)
-
+    try:
+        await redis_client.set(short_code, original_url, ex=3600)
+    except Exception:
+        pass
     return original_url
 
 def increment_clicks(short_code: str):
