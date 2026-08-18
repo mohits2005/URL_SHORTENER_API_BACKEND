@@ -11,8 +11,9 @@
 
 import redis.asyncio as redis
 import os
-
+from dotenv import load_dotenv
 load_dotenv()
+
 class SafeRedis:
     def __init__(self):
         self.client = None    
