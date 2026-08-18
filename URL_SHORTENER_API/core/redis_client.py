@@ -10,10 +10,17 @@
 #     redis_client = None
 
 import redis.asyncio as redis
+import os
 
+load_dotenv()
 class SafeRedis:
     def __init__(self):
+        self.client = None    
         try:
+            redis_url = os.getenv("REDIS_URL")
+
+            if not redis_url:
+                raise ValueError("REDIS_URL is not configured")    
             self.client = redis.Redis(
                 host="127.0.0.1",
                 port=6379,
