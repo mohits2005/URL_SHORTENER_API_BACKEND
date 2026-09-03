@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from fastapi.responses import RedirectResponse
 import os
 import urllib.parse
+import json
 from jose import jwt
 import URL_SHORTENER_API.schemas as schemas, URL_SHORTENER_API.crud as crud, URL_SHORTENER_API.auth as auth
 from URL_SHORTENER_API.deps import get_db
@@ -29,20 +30,20 @@ def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
     return user
 
 @router.post("/login", response_model=schemas.Token)
-def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = crud.get_user_by_email(db, form_data.username)
-    if not user or not auth.verify_password(form_data.password, user.hashed_password):
+def login_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
+    user = crud.get_user_by_email(db, user_in.email)
+    if not user or not auth.verify_password(user_in.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password", headers={"WWW-Autheticate": "Bearer"})
     token = auth.create_access_token({"sub": str(user.id)})
     return schemas.Token(access_token=token)
 
-@router.get("google/login")
+@router.get("/google/login")
 def google_login():
     params = {
         "client_id": os.getenv("GOOGLE_CLIENT_ID"),
         "response_type": "code",
         "scope": "openid email profile",
-        "redirect_uri": "http://127.0.0.1:8000/auth/google/callback",
+        "redirect_uri": os.getenv("GOOGLE_REDIRECT_URI"),
         "access_type": "offline",
         "prompt": "consent",
     }
@@ -59,31 +60,56 @@ def google_callback(code: str, db: Session = Depends(get_db)):
             "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
             "code": code,
             "grant_type": "authorization_code",
-            "redirect_uri": "http://127.0.0.1:8000/auth/google/callback"
+            "redirect_uri": os.getenv("GOOGLE_REDIRECT_URI")
         }
     )
+    if token_res.status_code != 200:
+        raise HTTPException(
+            status_code=400,
+            detail="Google Authentication failed"
+        )
 
     token_data = token_res.json()
-    access_token = token_data["access_token"]
+    access_token = token_data.get("access_token")
 
-
+    if not access_token:
+        raise HTTPException(
+            status_code=400,
+            detail="google didn't return a access token"
+        )
+    
     user_info = requests.get(
     "https://www.googleapis.com/oauth2/v3/userinfo",
-    headers={"Authorization": f"Bearer {access_token}"},).json()
+    headers={"Authorization": f"Bearer {access_token}"},)
 
-    email = user_info["email"]
+    if user_info.status_code != 200:
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to retrieve google user profile information"
+        )
+    user_res = user_info.json()
 
+    email = user_res.get("email")
+    if not email:
+        raise HTTPException(
+            status_code=400,
+            detail="User's google account email is not available"
+        )
+    
     user = get_user_by_email(db, email)
 
     if not user:
         user = User(email=email, hashed_password="")
         db.add(user)
-        db.commit(user)
+        db.commit()
         db.refresh(user)
 
-    jwt_token = create_access_token({"sub": user.id})
+    jwt_token = create_access_token({"sub": str(user.id)})
 
-    return{
-        "access_token": jwt_token,
-        "token_type": "bearer"
-    }
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8501")
+    redirect_url = f"{frontend_url.rstrip('/')}/?token={jwt_token}"
+    return RedirectResponse(url=redirect_url)
+    # return{
+    #     "access_token": jwt_token,
+    #     "token_type": "bearer"
+    # }
