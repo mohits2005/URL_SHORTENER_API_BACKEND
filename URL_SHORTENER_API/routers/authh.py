@@ -56,11 +56,11 @@ def google_callback(code: str, db: Session = Depends(get_db)):
     token_res = requests.post(
         "https://oauth2.googleapis.com/token",
         data = {
-            "client_id": os.getenv("GOOGLE_CLIENT_ID"),
-            "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
+            "client_id": os.getenv("GOOGLE_CLIENT_ID").strip(),
+            "client_secret": os.getenv("GOOGLE_CLIENT_SECRET").strip(),
             "code": code,
             "grant_type": "authorization_code",
-            "redirect_uri": os.getenv("GOOGLE_REDIRECT_URI")
+            "redirect_uri": os.getenv("GOOGLE_REDIRECT_URI").strip()
         }
     )
     if token_res.status_code != 200:
