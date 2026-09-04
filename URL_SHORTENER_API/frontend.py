@@ -20,7 +20,7 @@ except ImportError:
 
 import os
 
-DEFAULT_BASE_URL = "http://127.0.0.1:8000/"
+DEFAULT_BASE_URL = "https://url-shortener-api-backend-5.onrender.com"
 
 
 def resolve_base_url() -> str:
