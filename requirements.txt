@@ -13,3 +13,8 @@ pydantic[email]
 pytest
 slowapi
 redis
+streamlit
+streamlit-option-menu
+requests
+qrcode
+pillow
