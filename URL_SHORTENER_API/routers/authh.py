@@ -40,10 +40,10 @@ def login_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
 @router.get("/google/login")
 def google_login():
     params = {
-        "client_id": os.getenv("GOOGLE_CLIENT_ID"),
+        "client_id": os.getenv("GOOGLE_CLIENT_ID").strip(),
         "response_type": "code",
         "scope": "openid email profile",
-        "redirect_uri": os.getenv("GOOGLE_REDIRECT_URI"),
+        "redirect_uri": os.getenv("GOOGLE_REDIRECT_URI").strip(),
         "access_type": "offline",
         "prompt": "consent",
     }
