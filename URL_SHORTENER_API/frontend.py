@@ -245,7 +245,7 @@ if not st.session_state.token:
     with right:
         with st.container(border=True):
             choice = option_menu(
-                None, ["Login", "Register", "Google / token"],
+                None, ["Login", "Register", "Google"],
                 icons=["box-arrow-in-right", "person-plus", "google"],
                 orientation="horizontal", default_index=0,
                 styles={
@@ -319,23 +319,11 @@ if not st.session_state.token:
 
             else:  # Google / token
                 st.markdown("**Continue with Google**")
-                st.caption(
-                    "Opens Google sign-in on the API server. Note: the backend's callback "
-                    "currently returns the token as raw JSON rather than redirecting back "
-                    "here — copy that token and paste it below."
-                )
-                st.link_button("Continue with Google", api_url("/auth/google/login"), use_container_width=True)
-                st.write("")
-                with st.form("token_form", border=False):
-                    pasted = st.text_input("Access token", type="password")
-                    t_submitted = st.form_submit_button("Use this token", use_container_width=True)
-                if t_submitted:
-                    if pasted:
-                        st.session_state.token = pasted
-                        st.query_params["token"] = pasted
-                        st.rerun()
-                    else:
-                        st.warning("Paste a token first.")
+                st.link_button(
+                    "Continue with Google",
+                    api_url("/auth/google/login"),
+                    use_container_width=True,
+                    )
 
     st.stop()
 
