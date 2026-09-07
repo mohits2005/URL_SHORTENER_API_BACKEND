@@ -1,243 +1,139 @@
-# 🔗 URL Shortener Backend with Redis Optimization & Streamlit Frontend
+🔗 URL Shortener API
 
-A production-style full-stack URL shortener built with **FastAPI**, featuring **JWT authentication**, **Google OAuth**, **Redis caching**, **rate limiting**, and a **Streamlit-based frontend dashboard** for intuitive link management.
+A full-stack URL shortener with JWT + Google OAuth authentication, Redis caching, rate limiting, and a Streamlit dashboard — built with FastAPI.
 
----
+Python FastAPI SQLAlchemy Redis Streamlit License: MIT
 
-# 🚀 Features
+Live API - {https://url-shortener-api-backend-5.onrender.com} · Live UI - {https://url-shortener-api-ui.onrender.com} · API Docs (Swagger)
 
-* User registration & login (Email + Password)
-* JWT-based authentication & authorization
-* Google OAuth 2.0 login
-* Create short URLs for long links
-* Public redirection using short URLs
-* Click count tracking for each URL
-* Redis-based caching for fast redirects
-* Redis-based rate limiting (API abuse protection)
-* Background click tracking
-* Streamlit frontend dashboard
-* User-specific data isolation
-* RESTful API design with Swagger documentation
+</div>
+Overview
 
----
+This is a production-shaped URL shortener API — not just a POST /shorten toy endpoint. It has real user accounts (email/password + Google OAuth), JWT-secured routes, per-user link ownership, click analytics, a Redis cache-aside layer in front of the database, and Redis-backed rate limiting on the public redirect endpoint. A Streamlit dashboard sits on top for a usable frontend without hand-rolling a JS app.
 
-# ⚡ Performance Optimizations
+It's deployed live on Render (API + Streamlit UI as separate services) and backed by Supabase Postgres in production.
 
-* Implemented **Redis cache-aside pattern** to reduce database lookups
-* Reduced redirect latency by ~80% using in-memory caching
-* Added **Redis INCR + TTL rate limiting** for traffic control
-* Background tasks for non-blocking click tracking
-* Optimized API responsiveness for concurrent users
+Features
+🔐 Email/password auth with bcrypt password hashing and JWT access tokens
+🔑 Google OAuth 2.0 login flow
+✂️ Short link creation with collision-checked random short codes
+📊 Per-user link ownership — list only your own links
+🖱️ Click tracking, incremented via a FastAPI BackgroundTask so redirects aren't slowed down by the write
+⚡ Redis cache-aside in front of the DB for redirect lookups, including negative caching (NULL, 60s TTL) for unknown codes so repeated 404s don't keep hitting the database
+🛡️ Redis-backed rate limiting (10 requests / 60s per client IP) on the public redirect endpoint
+🖥️ Streamlit dashboard for login, link creation, and viewing your links
+📄 Auto-generated OpenAPI/Swagger docs at /docs
+Tech Stack
+Layer	Technology
+API framework	FastAPI + Uvicorn
+ORM / DB	SQLAlchemy, Supabase (Postgres) in production
+Auth	JWT (python-jose), bcrypt (passlib), Google OAuth 2.0
+Caching / rate limiting	Redis (Upstash in production)
+Frontend	Streamlit
+Deployment	Render (API + UI as separate services)
+Architecture
+┌─────────────────┐        HTTPS         ┌──────────────────────┐
+│ Streamlit UI     │ ───────────────────▶ │ FastAPI backend       │
+│ (Render service)│ ◀─────────────────── │ (Render service)      │
+└─────────────────┘                       └───────┬──────────────┘
+                                                    │
+                          ┌─────────────────────────┼─────────────────────────┐
+                          ▼                          ▼                         ▼
+                 ┌─────────────────┐        ┌─────────────────┐      ┌──────────────────┐
+                 │ Supabase          │        │ Upstash Redis     │      │ Google OAuth       │
+                 │ (Postgres)        │        │ cache + rate limit│      │ (identity)          │
+                 └─────────────────┘        └─────────────────┘      └──────────────────┘
 
----
+Redirect request flow (GET /u/{short_code}):
 
-# 🛠️ Tech Stack
-
-**Backend**
-
-* Python
-* FastAPI
-* SQLAlchemy
-* Pydantic
-* JWT Authentication
-* Google OAuth 2.0
-* SQLite / MySQL
-
-**Performance & Scaling**
-
-* Redis (Caching)
-* Redis (Rate Limiting)
-
-**Frontend**
-
-* Streamlit
-
-**Dev Tools**
-
-* Git
-* Uvicorn
-* Swagger UI
-
----
-
-# 📂 Project Structure
-
-```
-URL_SHORTENER_API
-│
+Check the per-IP rate limit in Redis (INCR + EXPIRE) — reject with 429 if exceeded.
+Check Redis cache for the short code. Cache hit → skip the DB entirely.
+Cache miss → query Postgres. Not found → cache a NULL sentinel for 60s and return 404. Found → cache the target URL for 1 hour.
+Return an HTTP 307 redirect.
+Increment the click counter after the response is sent, via a background task, so the redirect itself is never blocked on a DB write.
+Project Structure
+URL_SHORTENER_API/
+├── main.py                    # FastAPI app entrypoint, router registration
+├── frontend.py                 # Streamlit dashboard
+├── auth.py                     # Password hashing, JWT create/verify, get_current_user
+├── database.py                 # SQLAlchemy engine/session setup
+├── models.py                   # User, URL ORM models
+├── schemas.py                  # Pydantic request/response models
+├── crud.py                     # DB access functions
+├── deps.py                     # Shared FastAPI dependencies
 ├── core/
-│   └── redis_client.py
-│
-├── services/
-│   ├── url_service.py
-│   └── rate_limiter.py
-│
+│   └── redis_client.py         # Fault-tolerant Redis wrapper (Upstash)
 ├── routers/
-│   ├── authh.py
-│   └── url.py
-│
-├── frontend.py
-├── models.py
-├── schemas.py
-├── database.py
-├── crud.py
-├── main.py
-```
+│   ├── authh.py                # /auth/* — register, login, Google OAuth
+│   └── url.py                  # /urls, /u/{short_code}
+└── services/
+    ├── url_service.py          # Cache-aside redirect lookup, click increment
+    └── rate_limiter.py         # Redis INCR/EXPIRE-based rate limiting
+API Reference
 
----
+Full interactive docs are always available at /docs (Swagger UI) and /redoc.
 
-# 🔐 Authentication Flow
+Auth — /auth
+Method	Endpoint	Auth	Description
+POST	/auth/register	–	Register with { email, password }
+POST	/auth/login	–	Login with { email, password } → { access_token, token_type }
+GET	/auth/google/login	–	Redirects to Google's OAuth consent screen
+GET	/auth/google/callback	–	OAuth callback — issues a JWT and redirects to the frontend
+URLs
+Method	Endpoint	Auth	Description
+POST	/urls	✅ Bearer token	Create a short link from { target_url }
+GET	/urls	✅ Bearer token	List the current user's short links
+GET	/u/{short_code}	–	Public redirect to the original URL (rate-limited)
 
-### Email & Password
+Example: create a short link
 
-* User registers with email and password
-* Password is securely hashed
-* Login returns JWT access token
-* Token required for protected endpoints
-
-### Google OAuth
-
-* User initiates Google login
-* Google authenticates user
-* Backend fetches user profile
-* Backend issues JWT token
-
----
-
-# 🔗 API Endpoints
-
-### Auth
-
-* `POST /auth/register` – Register user
-* `POST /auth/login` – Login & receive JWT
-* `GET /auth/google/login` – Google login
-* `GET /auth/google/callback` – OAuth callback
-
-### URLs
-
-* `POST /urls` – Create short URL (Auth required)
-* `GET /urls` – List user URLs (Auth required)
-* `GET /u/{short_code}` – Redirect (Public)
-
----
-
-# ⚡ Redis Features
-
-### Caching
-
-* Short URLs cached in Redis
-* Reduces DB load
-* Improves redirect speed
-
-### Rate Limiting
-
-* Per-IP request tracking
-* Redis INCR with TTL
-* Prevents abuse & spam traffic
-
----
-
-# 🌍 Redirect Behavior
-
-* Short URL endpoint returns **HTTP 307 redirect**
-* Works correctly in browser
-* Clicks increment in background
-* Cached for faster subsequent requests
-
----
-
-# 🖥️ Streamlit Frontend
-
-Features:
-
-* User login & registration UI
-* Create short URLs
-* View click analytics
-* Dashboard-style layout
-* Persistent login session
-
-Run frontend:
-
-```
-streamlit run URL_SHORTENER_API/frontend.py
-```
-
----
-
-# 🧪 Running Locally
-
-### 1️⃣ Clone repo
-
-```
+bash
+curl -X POST https://url-shortener-api-backend-5.onrender.com/urls \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <your_jwt_token>" \
+  -d '{"target_url": "https://example.com/a/very/long/path"}'
+json
+{
+  "id": 1,
+  "short_code": "aB3xQ9",
+  "target_url": "https://example.com/a/very/long/path",
+  "clicks": 0
+}
+Getting Started (Local Development)
+Prerequisites
+Python 3.11+
+A Postgres database (or point SUPABASE_DB_URL at a local SQLite file for quick testing)
+A Redis instance (Upstash, or local redis-server) — optional, the app degrades gracefully to "no caching / no rate limiting" if Redis is unreachable
+1. Clone the repo
+bash
 git clone https://github.com/mohits2005/URL_SHORTENER_API_BACKEND.git
 cd URL_SHORTENER_API_BACKEND
-```
-
-### 2️⃣ Create virtual environment
-
-```
+2. Create a virtual environment
+bash
 python -m venv venv
-venv\Scripts\activate
-```
-
-### 3️⃣ Install dependencies
-
-```
+source venv/bin/activate        # Windows: venv\Scripts\activate
+3. Install dependencies
+bash
 pip install -r requirements.txt
-```
+4. Configure environment variables
 
-### 4️⃣ Run Redis
+Create a .env file in the project root:
 
-```
-redis-server
-```
-
-### 5️⃣ Run backend
-
-```
-uvicorn URL_SHORTENER_API.main:app --reload
-```
-
-### 6️⃣ Run frontend
-
-```
-streamlit run URL_SHORTENER_API/frontend.py
-```
-
----
-
-# 🔑 Environment Variables
-
-Create `.env` file:
-
-```
+env
 SECRET_KEY=your_jwt_secret
+SUPABASE_DB_URL=postgresql://user:password@host:port/dbname
+UPSTASH_REDIS_REST_URL=https://your-upstash-url
+UPSTASH_REDIS_REST_TOKEN=your_upstash_token
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
-```
+GOOGLE_REDIRECT_URI=http://127.0.0.1:8000/auth/google/callback
+FRONTEND_URL=http://localhost:8501
+5. Run the backend
+bash
+uvicorn URL_SHORTENER_API.main:app --reload
 
----
+API is now live at http://127.0.0.1:8000, docs at http://127.0.0.1:8000/docs.
 
-# 🔒 Security
-
-* Password hashing (bcrypt)
-* JWT expiration
-* Rate limiting protection
-* Auth-required endpoints
-* Google OAuth server-side validation
-
----
-
-# 📈 Future Improvements
-
-* Click analytics dashboard
-* Custom domains
-* Link expiration
-* QR code generation
-* Docker deployment
-
----
-
-# 👨‍💻 Author
-
-Mohit
+6. Run the frontend
+bash
+streamlit run URL_SHORTENER_API/frontend.py
