@@ -9,6 +9,7 @@ import asyncio
 from URL_SHORTENER_API.core.redis_client import redis_client
 import URL_SHORTENER_API.schemas as schemas, URL_SHORTENER_API.crud as crud, URL_SHORTENER_API.auth as auth  
 from URL_SHORTENER_API.deps import get_db
+import URL_SHORTENER_API.models as models
 
 router = APIRouter(tags=["urls"])
 
