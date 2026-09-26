@@ -21,7 +21,7 @@ def create_url(url_in: schemas.URLCreate, db: Session = Depends(get_db), current
                    )
     if existing_url:
         return existing_url
-    short_code = crud.create_unique_short_code(db, owner_id=current_user.id, target_url=str(url_in.target_url), user_id=current_user.id)
+    short_code = crud.create_unique_short_code(db, target_url=str(url_in.target_url), user_id=current_user.id)
     url = crud.create_url(db, owner_id=current_user.id, target_url=str(url_in.target_url), short_code=short_code)
     return url
 
