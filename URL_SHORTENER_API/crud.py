@@ -19,11 +19,11 @@ def generate_short_code(length: int = 6):
     chars = string.ascii_letters + string.digits
     return "".join(random.choice(chars) for _ in range(length))
 
-def create_unique_short_code(db: Session, length: int = 6):
+def create_unique_short_code(db: Session, target_url: str, user_id: int, length: int = 6):
     
     existing_url = (
         db.query(models.URL).filter(models.URL.target_url == target_url,
-                                     models.URL.user_id == user_id,
+                                     models.URL.owner_id == user_id,
                                     ).first()
      )
     if existing_url:
