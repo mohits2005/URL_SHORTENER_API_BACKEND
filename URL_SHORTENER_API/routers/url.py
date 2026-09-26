@@ -15,7 +15,8 @@ router = APIRouter(tags=["urls"])
 
 @router.post("/urls", response_model=schemas.URLRead)
 def create_url(url_in: schemas.URLCreate, db: Session = Depends(get_db), current_user = Depends(auth.get_current_user)):
-    existing_url = (db.query(models.URL).filter(models.URL.target_url == url_in.target_url,
+    target_url = str(url_in.target_url)
+    existing_url = (db.query(models.URL).filter(models.URL.target_url == target_url,
                                                 models.URL.owner_id == current_user.id).first()
                    )
     if existing_url:
