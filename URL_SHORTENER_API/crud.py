@@ -20,6 +20,15 @@ def generate_short_code(length: int = 6):
     return "".join(random.choice(chars) for _ in range(length))
 
 def create_unique_short_code(db: Session, length: int = 6):
+    
+    existing_url = (
+        db.query(models.URL).filter(models.URL.target_url == target_url,
+                                     models.URL.user_id == user_id,
+                                    ).first()
+     )
+    if existing_url:
+         return existing_url.short_code
+        
     while True:
         code = generate_short_code(length)
         existing = db.query(models.URL).filter(models.URL.short_code == code).first()
