@@ -16,3 +16,6 @@ app.include_router(urls_router.router)
 def root():
     return {"message": "URL Shortener + Auth API", "docs": "/docs", "redoc": "/redoc"}
 
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
