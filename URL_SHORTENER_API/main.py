@@ -19,3 +19,13 @@ def root():
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
+
+@app.get("/debug/client_info")
+async def get_user_ip(request: Request):
+    return {
+        "client_host": request.client.host if request.client else None,
+        "x_forwarded_for": request.headers.get("x-forwarded-for"),
+        "x_real_ip": request.headers.get("x_real_ip"),
+        "forwarded": request.headers.get("forwarded"),
+        "host": request.headers.get("host"),
+    }
