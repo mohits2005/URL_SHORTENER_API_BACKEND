@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from .database import engine
 from . import models
 from .routers import authh as auth_router
@@ -20,12 +20,14 @@ def root():
 def health_check():
     return {"status": "healthy"}
 
-@app.get("/debug/client_info")
+@app.get("/debug/client-info")
 async def get_user_ip(request: Request):
     return {
         "client_host": request.client.host if request.client else None,
         "x_forwarded_for": request.headers.get("x-forwarded-for"),
-        "x_real_ip": request.headers.get("x_real_ip"),
+        "x_real_ip": request.headers.get("x-real-ip"),
+        "cf_connecting_ip": request.headers.get("cf-connecting-ip"),
+        "cf_ray": request.headers.get("cf-ray"),
         "forwarded": request.headers.get("forwarded"),
         "host": request.headers.get("host"),
     }
